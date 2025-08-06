@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Esküvői Kalkulátor</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 1rem; }
+    h2, h3 { color: #444; }
+    .tetel-csoport { margin-bottom: 2rem; }
+    .tetel-csoport label { display: block; margin-bottom: 0.4rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f9f9f9; }
+    #osszeg { font-weight: bold; font-size: 1.2rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+
+<h2>Esküvői költségkalkulátor</h2>
+
+<div>
+  <label for="letszam">Létszám (fő):</label>
+  <input type="number" id="letszam" min="1" placeholder="Pl. 75">
+</div>
+
+<div id="tetelContainer"></div>
+
+<button onclick="kalkulal()">Kalkuláció</button>
+
+<div id="eredmeny"></div>
+
+<script>
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1bWMuNfFG-43NOvOKmY9MRt_5coMNUsbFqXKYK3cTk0s/gviz/tq?tqx=out:csv";
+
+let arak = {};
+
+async function betoltArakat() {
+  const res = await fetch(SHEET_URL);
+  const text = await res.text();
+  const lines = text.trim().split('\n').slice(1);
+  arak = {};
+
+  lines.forEach(line => {
+    const [kategoria, nev, ar1, ar2] = line.split(',');
+    if (!arak[kategoria]) arak[kategoria] = [];
+    arak[kategoria].push({
+      nev: nev.trim(),
+      ar1: parseInt(ar1.trim(), 10),
+      ar2: parseInt(ar2.trim(), 10)
+    });
+  });
+
+  megjelenitTetelValasztot();
+}
+
+function megjelenitTetelValasztot() {
+  const container = document.getElementById('tetelContainer');
+  container.innerHTML = '';
+
+  Object.keys(arak).forEach(kategoria => {
+    const div = document.createElement('div');
+    div.className = 'tetel-csoport';
+    const h3 = document.createElement('h3');
+    h3.textContent = kategoria;
+    div.appendChild(h3);
+
+    arak[kategoria].forEach((tetel, index) => {
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.dataset.kategoria = kategoria;
+      checkbox.dataset.nev = tetel.nev;
+      checkbox.dataset.ar1 = tetel.ar1;
+      checkbox.dataset.ar2 = tetel.ar2;
+      label.appendChild(checkbox);
+      label.append(` ${tetel.nev}`);
+      div.appendChild(label);
+    });
+
+    container.appendChild(div);
+  });
+}
+
+function kalkulal() {
+  const letszam = parseInt(document.getElementById('letszam').value, 10);
+  if (isNaN(letszam) || letszam < 1) {
+    alert('Adj meg érvényes létszámot!');
+    return;
+  }
+
+  const nagyLetszam = letszam >= 81;
+  const checkboxes = document.querySelectorAll('#tetelContainer input[type="checkbox"]');
+  let osszeg = 0;
+  let sorok = [];
+
+  checkboxes.forEach(cb => {
+    if (cb.checked) {
+      const nev = cb.dataset.nev;
+      const ar = nagyLetszam ? parseInt(cb.dataset.ar2, 10) : parseInt(cb.dataset.ar1, 10);
+      const tetelOsszesen = ar * letszam;
+      osszeg += tetelOsszesen;
+      sorok.push(`<tr>
+        <td>${nev}</td>
+        <td>${ar.toLocaleString()} Ft/fő</td>
+        <td>${letszam}</td>
+        <td>${tetelOsszesen.toLocaleString()} Ft</td>
+      </tr>`);
+    }
+  });
+
+  document.getElementById('eredmeny').innerHTML = `
+    <h3>Részletek:</h3>
+    <table>
+      <thead>
+        <tr><th>Tétel</th><th>Egységár</th><th>Létszám</th><th>Összesen</th></tr>
+      </thead>
+      <tbody>${sorok.join('')}</tbody>
+      <tfoot>
+        <tr><td colspan="3"><strong>Végösszeg</strong></td><td><strong>${osszeg.toLocaleString()} Ft</strong></td></tr>
+      </tfoot>
+    </table>
+  `;
+}
+
+betoltArakat();
+</script>
+
+</body>
+</html>
