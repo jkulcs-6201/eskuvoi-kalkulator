@@ -37,16 +37,20 @@ let arak = {};
 async function betoltArakat() {
   const res = await fetch(SHEET_URL);
   const text = await res.text();
-  const lines = text.trim().split('\n').slice(1);
+  const lines = text.trim().split('\n').slice(1); // első sor: fejléc
   arak = {};
 
   lines.forEach(line => {
-    const [kategoria, nev, ar1, ar2] = line.split(',');
+    const cols = line.split(',');
+    if (cols.length < 4) return; // hibás vagy hiányos sor
+    const [kategoria, nev, ar1, ar2] = cols.map(c => c.trim().replace(/^"|"$/g, ''));
+    if (!kategoria || !nev || isNaN(parseInt(ar1)) || isNaN(parseInt(ar2))) return;
+
     if (!arak[kategoria]) arak[kategoria] = [];
     arak[kategoria].push({
-      nev: nev.trim(),
-      ar1: parseInt(ar1.trim(), 10),
-      ar2: parseInt(ar2.trim(), 10)
+      nev: nev,
+      ar1: parseInt(ar1, 10),
+      ar2: parseInt(ar2, 10)
     });
   });
 
@@ -64,7 +68,7 @@ function megjelenitTetelValasztot() {
     h3.textContent = kategoria;
     div.appendChild(h3);
 
-    arak[kategoria].forEach((tetel, index) => {
+    arak[kategoria].forEach((tetel) => {
       const label = document.createElement('label');
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
